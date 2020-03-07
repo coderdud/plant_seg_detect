@@ -1,0 +1,7 @@
+*.pyc
+requirements-orig.txt
+.vscode
+venv
+.DS_Store
+testing.py
+sliding_win_on_img.py

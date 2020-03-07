@@ -1,0 +1,8 @@
+numpy >= 1.14.2
+mahotas >= 1.4.4
+glob3
+opencv-python >= 3.2.0
+matplotlib
+progressbar
+scikit-image
+scikit-learn
