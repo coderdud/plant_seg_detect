@@ -114,6 +114,8 @@ def create_binary_pattern(img, p, r):
     return (lbp-np.min(lbp))/(np.max(lbp)-np.min(lbp)) * 255
 
 def spec_feature_sndvi(img):
+    ''' this  function calculates the synthetic NDVI from 
+    RGB images'''
 
     print("[INFO] computing spectral features.")
     sndvi = np.array([])
