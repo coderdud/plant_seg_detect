@@ -13,6 +13,7 @@ from sklearn.model_selection import train_test_split
 import time
 import mahotas as mt
 
+
 def check_args(args):
 
     if not os.path.exists(args.image_dir):
@@ -29,18 +30,20 @@ def check_args(args):
 
     return args
 
+
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--image_dir" , help="Path to images", required=True)
+    parser.add_argument("-i", "--image_dir", help="Path to images", required=True)
     parser.add_argument("-l", "--label_dir", help="Path to labels", required=True)
     parser.add_argument("-c", "--classifier", help="Classification model to use", required = True)
     parser.add_argument("-o", "--output_model", help="Path to save model. Must end in .p", required = True)
     args = parser.parse_args()
     return check_args(args)
 
+
 def read_data(image_dir, label_dir):
 
-    print ('[INFO] Reading image data.')
+    print('[INFO] Reading image data.')
 
     filelist = glob(os.path.join(image_dir, '*.jpg'))
     image_list = []
@@ -53,15 +56,18 @@ def read_data(image_dir, label_dir):
 
     return image_list, label_list
 
+
 def subsample(features, labels, low, high, sample_size):
 
     idx = np.random.randint(low, high, sample_size)
 
     return features[idx], labels[idx]
 
+
 def subsample_idx(low, high, sample_size):
 
     return np.random.randint(low,high,sample_size)
+
 
 def calc_haralick(roi):
 
@@ -74,21 +80,26 @@ def calc_haralick(roi):
 
     return np.array(feature_vec)
 
+
 def harlick_features(img, h_neigh, ss_idx):
 
-    print ('[INFO] Computing haralick features.')
+    print('[INFO] Computing haralick features.')
     size = h_neigh
     shape = (img.shape[0] - size + 1, img.shape[1] - size + 1, size, size)
     strides = 2 * img.strides
     patches = stride_tricks.as_strided(img, shape=shape, strides=strides)
     patches = patches.reshape(-1, size, size)
 
-    if len(ss_idx) == 0 :
-        bar = progressbar.ProgressBar(maxval=len(patches), \
-        widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
+    if len(ss_idx) == 0:
+        bar = progressbar.ProgressBar(maxval=len(patches),
+                                      widgets=[progressbar.Bar('=', '[', ']'),
+                                               ' ',
+                                               progressbar.Percentage()])
     else:
-        bar = progressbar.ProgressBar(maxval=len(ss_idx), \
-        widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
+        bar = progressbar.ProgressBar(maxval=len(ss_idx),
+                                      widgets=[progressbar.Bar('=', '[', ']'),
+                                               ' ',
+                                               progressbar.Percentage()])
 
     bar.start()
 
@@ -103,15 +114,17 @@ def harlick_features(img, h_neigh, ss_idx):
             bar.update(i+1)
             h_features.append(calc_haralick(p))
 
-    #h_features = [calc_haralick(p) for p in patches[ss_idx]]
+    # h_features = [calc_haralick(p) for p in patches[ss_idx]]
 
     return np.array(h_features)
 
+
 def create_binary_pattern(img, p, r):
 
-    print ('[INFO] Computing local binary pattern features.')
+    print('[INFO] Computing local binary pattern features.')
     lbp = feature.local_binary_pattern(img, p, r)
     return (lbp-np.min(lbp))/(np.max(lbp)-np.min(lbp)) * 255
+
 
 def spec_feature_sndvi(img):
     ''' this  function calculates the synthetic NDVI from 
@@ -123,6 +136,7 @@ def spec_feature_sndvi(img):
 
     return sndvi
 
+
 def spec_feature_exgi(img):
 
     print('[INFO] computing ExGI features.')
@@ -130,6 +144,13 @@ def spec_feature_exgi(img):
     ExGI = 2*img[:,:,1] - img[:,:,0] - img[:,:,2]
 
     return ExGI
+
+
+def spec_hsv_features(img):
+
+    print('[INFO] computing HSI features')
+    hsv_img = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
+    return hsv_img[:,:,0]
 
 
 def create_features(img, img_gray, label, train=True):
@@ -141,17 +162,18 @@ def create_features(img, img_gray, label, train=True):
     lbp_points = lbp_radius*8
     h_ind = int((h_neigh - 1)/ 2)
 
-    feature_img = np.zeros((img.shape[0],img.shape[1],6))
+    feature_img = np.zeros((img.shape[0],img.shape[1],7))
     feature_img[:,:,:3] = img
     sndvi = spec_feature_sndvi(img)
     exgi = spec_feature_exgi(img)
-    img = None
+    # img = None
     feature_img[:,:,3] = create_binary_pattern(img_gray, lbp_points, lbp_radius)
     feature_img[:,:,4] = sndvi
     feature_img[:,:,5] = exgi
+    feature_img[:,:,6] = spec_hsv_features(img)
     feature_img = feature_img[h_ind:-h_ind, h_ind:-h_ind]
     features = feature_img.reshape(feature_img.shape[0]*feature_img.shape[1], feature_img.shape[2])
-    print(features.shape)
+    print('[INFO] feature vector shape:',features.shape)
 
     if train == True:
         ss_idx = subsample_idx(0, features.shape[0], num_examples)
@@ -173,9 +195,10 @@ def create_features(img, img_gray, label, train=True):
 
     return features, labels
 
+
 def create_training_dataset(image_list, label_list):
 
-    print ('[INFO] Creating training dataset on %d image(s).' %len(image_list))
+    print('[INFO] Creating training dataset on %d image(s).' %len(image_list))
 
     X = []
     y = []
@@ -194,20 +217,21 @@ def create_training_dataset(image_list, label_list):
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    print ('[INFO] Feature vector size:', X_train.shape)
+    print('[INFO] Feature vector size:', X_train.shape)
 
     return X_train, X_test, y_train, y_test
+
 
 def train_model(X, y, classifier):
 
     if classifier == "SVM":
         from sklearn.svm import SVC
-        print ('[INFO] Training Support Vector Machine model.')
+        print('[INFO] Training Support Vector Machine model.')
         model = SVC(C=2)
         model.fit(X, y)
     elif classifier == "RF":
         from sklearn.ensemble import RandomForestClassifier
-        print ('[INFO] Training Random Forest model.')
+        print('[INFO] Training Random Forest model.')
         model = RandomForestClassifier(n_estimators=250, max_depth=12, random_state=42)
         model.fit(X, y)
     elif classifier == "GBC":
@@ -215,9 +239,10 @@ def train_model(X, y, classifier):
         model = GradientBoostingClassifier(n_estimators=100, learning_rate=1.0, max_depth=1, random_state=0)
         model.fit(X, y)
 
-    print ('[INFO] Model training complete.')
-    print ('[INFO] Training Accuracy: %.2f' %model.score(X, y))
+    print('[INFO] Model training complete.')
+    print('[INFO] Training Accuracy: %.2f' %model.score(X, y))
     return model
+
 
 def test_model(X, y, model):
 
@@ -227,12 +252,13 @@ def test_model(X, y, model):
     f1 = metrics.f1_score(y, pred, average='weighted', labels=np.unique(pred))
     accuracy = metrics.accuracy_score(y, pred)
 
-    print ('--------------------------------')
-    print ('[RESULTS] Accuracy: %.2f' %accuracy)
-    print ('[RESULTS] Precision: %.2f' %precision)
-    print ('[RESULTS] Recall: %.2f' %recall)
-    print ('[RESULTS] F1: %.2f' %f1)
-    print ('--------------------------------')
+    print('--------------------------------')
+    print('[RESULTS] Accuracy: %.2f' %accuracy)
+    print('[RESULTS] Precision: %.2f' %precision)
+    print('[RESULTS] Recall: %.2f' %recall)
+    print('[RESULTS] F1: %.2f' %f1)
+    print('--------------------------------')
+
 
 def main(image_dir, label_dir, classifier, output_model):
 
@@ -243,7 +269,8 @@ def main(image_dir, label_dir, classifier, output_model):
     model = train_model(X_train, y_train, classifier)
     test_model(X_test, y_test, model)
     pkl.dump(model, open(output_model, "wb"))
-    print ('Processing time:',time.time()-start)
+    print('Processing time:',time.time()-start)
+
 
 if __name__ == "__main__":
     args = parse_args()
