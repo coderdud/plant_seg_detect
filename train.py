@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-import pylab as plt
+# import pylab as plt
 from glob import glob
 import argparse
 import os
@@ -15,7 +15,6 @@ import mahotas as mt
 
 
 def check_args(args):
-
     if not os.path.exists(args.image_dir):
         raise ValueError("Image directory does not exist")
 
@@ -35,14 +34,13 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--image_dir", help="Path to images", required=True)
     parser.add_argument("-l", "--label_dir", help="Path to labels", required=True)
-    parser.add_argument("-c", "--classifier", help="Classification model to use", required = True)
-    parser.add_argument("-o", "--output_model", help="Path to save model. Must end in .p", required = True)
+    parser.add_argument("-c", "--classifier", help="Classification model to use", required=True)
+    parser.add_argument("-o", "--output_model", help="Path to save model. Must end in .p", required=True)
     args = parser.parse_args()
     return check_args(args)
 
 
 def read_data(image_dir, label_dir):
-
     print('[INFO] Reading image data.')
 
     filelist = glob(os.path.join(image_dir, '*.jpg'))
@@ -50,27 +48,23 @@ def read_data(image_dir, label_dir):
     label_list = []
 
     for file in filelist:
-
         image_list.append(cv2.imread(file, 1))
-        label_list.append(cv2.imread(os.path.join(label_dir, os.path.basename(file).split('.')[0]+'.png'), 0))
+        label_list.append(cv2.imread(os.path.join(label_dir, os.path.basename(file).split('.')[0] + '.png'), 0))
 
     return image_list, label_list
 
 
 def subsample(features, labels, low, high, sample_size):
-
     idx = np.random.randint(low, high, sample_size)
 
     return features[idx], labels[idx]
 
 
 def subsample_idx(low, high, sample_size):
-
-    return np.random.randint(low,high,sample_size)
+    return np.random.randint(low, high, sample_size)
 
 
 def calc_haralick(roi):
-
     feature_vec = []
 
     texture_features = mt.features.haralick(roi)
@@ -82,7 +76,6 @@ def calc_haralick(roi):
 
 
 def harlick_features(img, h_neigh, ss_idx):
-
     print('[INFO] Computing haralick features.')
     size = h_neigh
     shape = (img.shape[0] - size + 1, img.shape[1] - size + 1, size, size)
@@ -107,11 +100,11 @@ def harlick_features(img, h_neigh, ss_idx):
 
     if len(ss_idx) == 0:
         for i, p in enumerate(patches):
-            bar.update(i+1)
+            bar.update(i + 1)
             h_features.append(calc_haralick(p))
     else:
         for i, p in enumerate(patches[ss_idx]):
-            bar.update(i+1)
+            bar.update(i + 1)
             h_features.append(calc_haralick(p))
 
     # h_features = [calc_haralick(p) for p in patches[ss_idx]]
@@ -120,10 +113,9 @@ def harlick_features(img, h_neigh, ss_idx):
 
 
 def create_binary_pattern(img, p, r):
-
     print('[INFO] Computing local binary pattern features.')
     lbp = feature.local_binary_pattern(img, p, r)
-    return (lbp-np.min(lbp))/(np.max(lbp)-np.min(lbp)) * 255
+    return (lbp - np.min(lbp)) / (np.max(lbp) - np.min(lbp)) * 255
 
 
 def spec_feature_sndvi(img):
@@ -131,49 +123,44 @@ def spec_feature_sndvi(img):
     RGB images'''
 
     print("[INFO] computing spectral features.")
-    sndvi = np.array([])
-    sndvi = (img[:,:,1]-img[:,:,2])/(img[:,:,1]+img[:,:,2]+0.000001)
+    sndvi = (img[:, :, 1] - img[:, :, 2]) / (img[:, :, 1] + img[:, :, 2] + 0.000001)
 
     return sndvi
 
 
 def spec_feature_exgi(img):
-
     print('[INFO] computing ExGI features.')
-    ExGI = np.array([])
-    ExGI = 2*img[:,:,1] - img[:,:,0] - img[:,:,2]
+    ExGI = 2 * img[:, :, 1] - img[:, :, 0] - img[:, :, 2]
 
     return ExGI
 
 
 def spec_hsv_features(img):
-
     print('[INFO] computing HSI features')
-    hsv_img = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
-    return hsv_img[:,:,0]
+    hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    return hsv_img[:, :, 0]
 
 
 def create_features(img, img_gray, label, train=True):
+    lbp_radius = 24  # local binary pattern neighbourhood
+    h_neigh = 11  # haralick neighbourhood
+    num_examples = 10000  # number of examples per image to use for training model
 
-    lbp_radius = 24 # local binary pattern neighbourhood
-    h_neigh = 11 # haralick neighbourhood
-    num_examples = 10000 # number of examples per image to use for training model
+    lbp_points = lbp_radius * 8
+    h_ind = int((h_neigh - 1) / 2)
 
-    lbp_points = lbp_radius*8
-    h_ind = int((h_neigh - 1)/ 2)
-
-    feature_img = np.zeros((img.shape[0],img.shape[1],7))
-    feature_img[:,:,:3] = img
+    feature_img = np.zeros((img.shape[0], img.shape[1], 7))
+    feature_img[:, :, :3] = img
     sndvi = spec_feature_sndvi(img)
     exgi = spec_feature_exgi(img)
     # img = None
-    feature_img[:,:,3] = create_binary_pattern(img_gray, lbp_points, lbp_radius)
-    feature_img[:,:,4] = sndvi
-    feature_img[:,:,5] = exgi
-    feature_img[:,:,6] = spec_hsv_features(img)
+    feature_img[:, :, 3] = create_binary_pattern(img_gray, lbp_points, lbp_radius)
+    feature_img[:, :, 4] = sndvi
+    feature_img[:, :, 5] = exgi
+    feature_img[:, :, 6] = spec_hsv_features(img)
     feature_img = feature_img[h_ind:-h_ind, h_ind:-h_ind]
-    features = feature_img.reshape(feature_img.shape[0]*feature_img.shape[1], feature_img.shape[2])
-    print('[INFO] feature vector shape:',features.shape)
+    features = feature_img.reshape(feature_img.shape[0] * feature_img.shape[1], feature_img.shape[2])
+    print('[INFO] feature vector shape:', features.shape)
 
     if train == True:
         ss_idx = subsample_idx(0, features.shape[0], num_examples)
@@ -183,12 +170,12 @@ def create_features(img, img_gray, label, train=True):
 
     h_features = harlick_features(img_gray, h_neigh, ss_idx)
     features = np.hstack((features, h_features))
-    print('this is the feature vector size:',features.shape)
+    print('this is the feature vector size:', features.shape)
 
     if train == True:
 
         label = label[h_ind:-h_ind, h_ind:-h_ind]
-        labels = label.reshape(label.shape[0]*label.shape[1], 1)
+        labels = label.reshape(label.shape[0] * label.shape[1], 1)
         labels = labels[ss_idx]
     else:
         labels = None
@@ -206,14 +193,15 @@ def create_training_dataset(image_list, label_list):
     for i, img in enumerate(image_list):
 
         img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        print('[Debuging] label_list[i] = ', label_list[i])
         features, labels = create_features(img, img_gray, label_list[i])
         X.append(features)
         y.append(labels)
 
     X = np.array(X)
-    X = X.reshape(X.shape[0]*X.shape[1], X.shape[2])
+    X = X.reshape(X.shape[0] * X.shape[1], X.shape[2])
     y = np.array(y)
-    y = y.reshape(y.shape[0]*y.shape[1], y.shape[2]).ravel()
+    y = y.reshape(y.shape[0] * y.shape[1], y.shape[2]).ravel()
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
@@ -240,12 +228,11 @@ def train_model(X, y, classifier):
         model.fit(X, y)
 
     print('[INFO] Model training complete.')
-    print('[INFO] Training Accuracy: %.2f' %model.score(X, y))
+    print('[INFO] Training Accuracy: %.2f' % model.score(X, y))
     return model
 
 
 def test_model(X, y, model):
-
     pred = model.predict(X)
     precision = metrics.precision_score(y, pred, average='weighted', labels=np.unique(pred))
     recall = metrics.recall_score(y, pred, average='weighted', labels=np.unique(pred))
@@ -253,15 +240,14 @@ def test_model(X, y, model):
     accuracy = metrics.accuracy_score(y, pred)
 
     print('--------------------------------')
-    print('[RESULTS] Accuracy: %.2f' %accuracy)
-    print('[RESULTS] Precision: %.2f' %precision)
-    print('[RESULTS] Recall: %.2f' %recall)
-    print('[RESULTS] F1: %.2f' %f1)
+    print('[RESULTS] Accuracy: %.2f' % accuracy)
+    print('[RESULTS] Precision: %.2f' % precision)
+    print('[RESULTS] Recall: %.2f' % recall)
+    print('[RESULTS] F1: %.2f' % f1)
     print('--------------------------------')
 
 
 def main(image_dir, label_dir, classifier, output_model):
-
     start = time.time()
 
     image_list, label_list = read_data(image_dir, label_dir)
@@ -269,7 +255,7 @@ def main(image_dir, label_dir, classifier, output_model):
     model = train_model(X_train, y_train, classifier)
     test_model(X_test, y_test, model)
     pkl.dump(model, open(output_model, "wb"))
-    print('Processing time:',time.time()-start)
+    print('Processing time:', time.time() - start)
 
 
 if __name__ == "__main__":
