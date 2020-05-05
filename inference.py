@@ -1,12 +1,12 @@
 import cv2
 import numpy as np
-import pylab as plt
 from glob import glob
 import argparse
 import os
 import pickle as pkl
 import train
 import math
+
 
 def check_args(args):
 
@@ -18,6 +18,7 @@ def check_args(args):
 
     return args
 
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--image_dir" , help="Path to images", required=True)
@@ -25,6 +26,7 @@ def parse_args():
     parser.add_argument("-o", "--output_dir", help="Path to output directory", required = True)
     args = parser.parse_args()
     return check_args(args)
+
 
 def create_features(img):
 
@@ -34,13 +36,14 @@ def create_features(img):
 
     return features
 
+
 def compute_prediction(img, model):
 
     border = 5 # (haralick neighbourhood - 1) / 2
 
-    img = cv2.copyMakeBorder(img, top=border, bottom=border, \
-                                  left=border, right=border, \
-                                  borderType = cv2.BORDER_CONSTANT, \
+    img = cv2.copyMakeBorder(img, top=border, bottom=border,
+                                  left=border, right=border,
+                                  borderType =cv2.BORDER_CONSTANT,
                                   value=[0, 0, 0])
 
     features = create_features(img)
@@ -50,6 +53,7 @@ def compute_prediction(img, model):
 
     return inference_img
 
+
 def infer_images(image_dir, model_path, output_dir):
 
     filelist = glob(os.path.join(image_dir,'*.jpg'))
@@ -57,15 +61,18 @@ def infer_images(image_dir, model_path, output_dir):
     print ('[INFO] Running inference on %s test images' %len(filelist))
 
     model = pkl.load(open( model_path, "rb" ) )
+    print('[InFO Mohammad] Model loaded!')
 
     for file in filelist:
         print ('[INFO] Processing images:', os.path.basename(file))
         inference_img = compute_prediction(cv2.imread(file, 1), model)
         cv2.imwrite(os.path.join(output_dir, os.path.basename(file)), inference_img)
 
+
 def main(image_dir, model_path, output_dir):
 
     infer_images(image_dir, model_path, output_dir)
+
 
 if __name__ == '__main__':
     args = parse_args()
