@@ -83,9 +83,6 @@ def super_pixel(input_image):
 
 
 def super_pproc(input_image):
-    # define the window width and height
-    (winW, winH) = (128, 128)
-
     # loop over the image pyramid
     for resized in pyramid(input_image, scale=1.5):
         # loop over the sliding window for each layer of the pyramid
@@ -100,9 +97,9 @@ if __name__ == '__main__':
     args = parse_args()
     input_image = load_image(args.image_dir)
     image_shape = input_image.shape
-    print(image_shape[0])
+    print(image_shape)
     if image_shape[0] > 540 or image_shape[1] > 640:
-        input_image = cv2.resize(input_image, (512, 512))
+        input_image = cv2.resize(input_image, (1000, 1000))
     # slide_proc(input_image)
     super_pproc(input_image)
 
